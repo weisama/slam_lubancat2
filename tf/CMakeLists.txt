@@ -34,12 +34,6 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
-# 安装其他目录（如果需要）
-install(DIRECTORY
-  config
-  DESTINATION share/${PROJECT_NAME}
-)
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # 以下行会忽略ament_lint_auto找到的ament_lint_common包
