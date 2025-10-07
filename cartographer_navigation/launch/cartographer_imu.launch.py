@@ -30,7 +30,8 @@ def generate_launch_description():
             '-configuration_basename', 'mylaser_imu.lua'],  # 使用自定义配置文件
         remappings = [
             ('scan', 'scan'),  # 添加话题重映射确保订阅正确的激光话题
-            ('imu', '/mavros/imu/data')],  # 添加IMU话题重映射（重要修改）
+            ('imu', '/mavros/imu/data'), # 添加IMU话题重映射（重要修改）
+            ('odom', '/odom_rf2o')], 
         output = 'screen'
         )
 

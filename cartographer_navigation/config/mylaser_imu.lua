@@ -8,13 +8,13 @@ options = {
   -- 坐标系设置
   map_frame = "map",  -- 全局地图坐标系，通常是固定坐标系
   tracking_frame = "base_link",  -- SLAM算法跟踪的机器人基座坐标系
-  published_frame = "base_link",  -- 发布定位结果的坐标系
+  published_frame = "odom",  -- 发布定位结果的坐标系##########
   odom_frame = "odom",  -- 里程计坐标系，用于发布局部SLAM结果
   
   -- 功能开关
-  provide_odom_frame = false,  -- 是否由cartographer提供里程计坐标系
+  provide_odom_frame = false,  -- 是否由cartographer提供里程计坐标系###########
+  use_odometry = true,  -- 是否使用外部里程计数据##############
   publish_frame_projected_to_2d = true,  -- 将3D位姿投影到2D（忽略俯仰角）
-  use_odometry = false,  -- 是否使用外部里程计数据
   use_nav_sat = false,  -- 是否使用GPS数据
   use_landmarks = false,  -- 是否使用路标点
   
@@ -41,9 +41,9 @@ options = {
 MAP_BUILDER.use_trajectory_builder_2d = true  -- 启用2D轨迹构建器，适用于平面移动机器人
 
 -- 2D轨迹构建器参数
-TRAJECTORY_BUILDER_2D.min_range = 0.3  -- 激光雷达最小有效测量距离
+TRAJECTORY_BUILDER_2D.min_range = 0.15  -- 激光雷达最小有效测量距离
 TRAJECTORY_BUILDER_2D.max_range = 5.0  -- 激光雷达最大有效测量距离
-TRAJECTORY_BUILDER_2D.missing_data_ray_length = 10.  -- 缺失数据的射线长度
+TRAJECTORY_BUILDER_2D.missing_data_ray_length = 3.  -- 缺失数据的射线长度
 TRAJECTORY_BUILDER_2D.use_imu_data = true  -- 是否使用IMU数据#############
 TRAJECTORY_BUILDER_2D.use_online_correlative_scan_matching = true  -- 是否使用在线相关扫描匹配
 
@@ -52,27 +52,28 @@ TRAJECTORY_BUILDER_2D.imu_gravity_time_constant = 10.  -- IMU重力时间常数#
 TRAJECTORY_BUILDER_2D.pose_extrapolator.use_imu_based = false  -- 对于2D SLAM，通常设置为false#############
 
 -- 运动滤波参数
-TRAJECTORY_BUILDER_2D.motion_filter.max_angle_radians = math.rad(0.1)  -- 位姿更新最小角度阈值
+TRAJECTORY_BUILDER_2D.motion_filter.max_angle_radians = math.rad(0.03)  -- 位姿更新最小角度阈值
 
 -- Ceres扫描匹配器参数
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 2e2  -- 平移项的优化权重，值越大对平移误差越敏感
+-- TRAJECTORY_BUILDER_2D.ceres_scan_matcher.occupied_space_weight =10.	--扫描匹配点云和地图匹配程度，值越大，点云和地图匹配置信度越高
 TRAJECTORY_BUILDER_2D.ceres_scan_matcher.ceres_solver_options.max_num_iterations = 20  -- 最大迭代次数，影响优化精度和耗时
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 600  -- 显著提高，加强对先验旋转的约束###############
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 200  -- 平移项的优化权重，值越大对平移误差越敏感
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 400  -- 显著提高，加强对先验旋转的约束########
 
 TRAJECTORY_BUILDER_2D.num_accumulated_range_data = 1  -- 累积多帧数据，改善高速移动时的数据质量
 TRAJECTORY_BUILDER_2D.voxel_filter_size = 0.05  -- 较小的体素提供更精细的地图但计算量更大
 TRAJECTORY_BUILDER_2D.submaps.num_range_data = 45  -- 每个子地图包含的雷达数据帧数，值小更新快，值大更稳定
-MAP_BUILDER.num_background_threads = 4  -- 后台处理线程数，CPU核心数
+MAP_BUILDER.num_background_threads = 2  -- 后台处理线程数，CPU核心数
 
 -- 位姿图优化参数
 POSE_GRAPH.constraint_builder.min_score = 0.65  -- 闭环检测的最小匹配分数，值高减少错误闭环，值低更容易检测到闭环
 POSE_GRAPH.constraint_builder.global_localization_min_score = 0.7  -- 全局定位的最小匹配分数
 
 -- 采样率参数
-POSE_GRAPH.global_sampling_ratio = 0.001  -- 全局约束采样率
+POSE_GRAPH.global_sampling_ratio = 0001  -- 全局约束采样率
 POSE_GRAPH.constraint_builder.sampling_ratio = 0.001  -- 约束构建采样率
 
 -- 优化频率设置
-POSE_GRAPH.optimize_every_n_nodes = 50  -- 每N个节点执行一次优化,越小地图更新越频繁
+POSE_GRAPH.optimize_every_n_nodes = 90  -- 每N个节点执行一次优化,越小地图更新越频繁,num_range_data*2
 
 return options
