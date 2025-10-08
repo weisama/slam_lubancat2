@@ -214,8 +214,8 @@ void CLaserOdometry2DNode::publish()
   odom.header.stamp = rf2o_ref.last_odom_time;    // the time of the last scan used!
   odom.header.frame_id = odom_frame_id;
   //set the position
-  odom.pose.pose.position.x = rf2o_ref.robot_pose_.translation()(0);
-  odom.pose.pose.position.y = rf2o_ref.robot_pose_.translation()(1);
+  odom.pose.pose.position.x = - rf2o_ref.robot_pose_.translation()(0);////////////////////
+  odom.pose.pose.position.y = - rf2o_ref.robot_pose_.translation()(1);////////////////////
   odom.pose.pose.position.z = 0.0;
   odom.pose.pose.orientation = quaternion;
   //set the velocity
@@ -234,8 +234,10 @@ void CLaserOdometry2DNode::publish()
     odom_trans.header.stamp = rf2o_ref.last_odom_time;    // the time of the last scan used!
     odom_trans.header.frame_id = odom_frame_id;
     odom_trans.child_frame_id = base_frame_id;
-    odom_trans.transform.translation.x = rf2o_ref.robot_pose_.translation()(0);
-    odom_trans.transform.translation.y = rf2o_ref.robot_pose_.translation()(1);
+    
+    odom_trans.transform.translation.x = - rf2o_ref.robot_pose_.translation()(0);////////////////////
+    odom_trans.transform.translation.y = - rf2o_ref.robot_pose_.translation()(1);////////////////////
+    
     odom_trans.transform.translation.z = 0.0;
     odom_trans.transform.rotation = quaternion;
     //send the transform

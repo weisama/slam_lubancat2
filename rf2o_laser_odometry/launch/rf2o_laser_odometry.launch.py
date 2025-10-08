@@ -23,11 +23,12 @@ def generate_launch_description():
                 output='screen',
                 parameters=[{
                     'laser_scan_topic' : '/scan',
-                    'odom_topic' : '/odom_rf2o',
-                    'publish_tf' : True,
-                    'base_frame_id' : 'base_link',
-                    'odom_frame_id' : 'odom',
-                    'init_pose_from_topic' : '',
-                    'freq' : 10.0}],
+                    'odom_topic' : '/odom_rf2o',    # 发布的坐标话题
+                    'publish_tf' : False,           # 是否发布 odom -> base_link
+                    'base_frame_id' : 'base_link',  # 机器人坐标系
+                    'odom_frame_id' : 'odom',       # 坐标话题的坐标系
+                    'init_pose_from_topic' : '',    # 初始位姿
+                    'freq' : 10.0                   # 运行频率保持和雷达一致
+                    }],
             ),
     ])

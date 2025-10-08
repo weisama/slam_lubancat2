@@ -6,15 +6,15 @@ options = {
   trajectory_builder = TRAJECTORY_BUILDER,
   
   -- 坐标系设置
-  map_frame = "map",  -- 全局地图坐标系，通常是固定坐标系
+  map_frame = "map",  -- 全局地图坐标系，发布tf变换的起始点，坐标系A
   tracking_frame = "base_link",  -- SLAM算法跟踪的机器人基座坐标系
-  published_frame = "odom",  -- 发布定位结果的坐标系##########
-  odom_frame = "odom",  -- 里程计坐标系，用于发布局部SLAM结果
+  published_frame = "base_link",  -- 通常是base_link，发布tf变换的结束点，坐标系C
+  odom_frame = "odom",  -- 发布tf变换的中点，坐标系C
   
   -- 功能开关
-  provide_odom_frame = false,  -- 是否由cartographer提供里程计坐标系###########
-  use_odometry = true,  -- 是否使用外部里程计数据##############
-  publish_frame_projected_to_2d = true,  -- 将3D位姿投影到2D（忽略俯仰角）
+  provide_odom_frame = true,  -- 是否添加中间点B，A->C 或 A->B->C
+  publish_frame_projected_to_2d = true,  -- 将3D位姿投影到2D，忽略俯仰角带来的地图偏差
+  use_odometry = true,  -- 是否使用外部里程计数据
   use_nav_sat = false,  -- 是否使用GPS数据
   use_landmarks = false,  -- 是否使用路标点
   

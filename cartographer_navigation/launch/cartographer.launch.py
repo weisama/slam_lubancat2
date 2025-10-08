@@ -29,7 +29,8 @@ def generate_launch_description():
             '-configuration_directory', config_dir,  # 使用自定义配置目录
             '-configuration_basename', 'mylaser.lua'],  # 使用自定义配置文件
         remappings = [
-            ('scan', 'scan')],  # 添加话题重映射确保订阅正确的激光话题
+            ('scan', 'scan'),
+            ('odom', '/odom_rf2o')],  # 添加话题重映射确保订阅正确的话题
         output = 'screen'
         )
 
