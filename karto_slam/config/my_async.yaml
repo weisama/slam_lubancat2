@@ -1,0 +1,76 @@
+slam_toolbox:
+  ros__parameters: # Plugin params
+    
+    # Ceres 求解器插件配置
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY  # 线性求解器类型
+    ceres_preconditioner: SCHUR_JACOBI          # 预条件子类型
+    ceres_trust_strategy: LEVENBERG_MARQUARDT   # 信任区域策略
+    ceres_dogleg_type: TRADITIONAL_DOGLEG       # Dogleg 算法类型
+    ceres_loss_function: None                   # 损失函数（None 表示不使用）
+
+    # ROS 坐标系和话题配置
+    odom_frame: odom		   # 里程计坐标系
+    map_frame: map                 # 地图坐标系  
+    base_frame: base_link          # 机器人基坐标系
+    scan_topic: /scan              # 激光扫描数据话题
+
+
+    # 运行模式选择
+    mode: mapping  # 建图模式（可选：mapping / localization）
+    
+    # 地图初始化配置（互斥选项）
+    #map_file_name: test_steve                # 要加载的地图文件名
+    # map_start_pose: [0.0, 0.0, 0.0]         # 地图起始位姿
+    #map_start_at_dock: true                  # 是否从停靠点开始
+
+    # 系统配置
+    debug_logging: false           # 是否启用调试日志
+    throttle_scans: 1              # 扫描数据节流系数（每n帧处理1帧）
+    transform_publish_period: 0.02 # 坐标变换发布周期（秒），0表示不发布
+    map_update_interval: 5.0       # 地图更新间隔（秒）
+    resolution: 0.05               # 地图分辨率（米/像素）
+    max_laser_range: 20.0          # 激光最大有效距离（米）
+    minimum_time_interval: 0.5     # 最小处理时间间隔（秒）
+    transform_timeout: 0.2         # 坐标变换超时时间（秒）
+    tf_buffer_duration: 30.        # TF 缓冲区持续时间（秒）
+    stack_size_to_use: 40000000    # 堆栈大小（用于序列化大地图）
+    enable_interactive_mode: true  # 是否启用交互模式
+
+    # 通用SLAM参数
+    use_scan_matching: true        # 是否使用扫描匹配
+    use_scan_barycenter: true      # 是否使用扫描重心
+    minimum_travel_distance: 0.5   # 最小移动距离（米）后才处理新扫描
+    minimum_travel_heading: 0.5    # 最小转动角度（弧度）后才处理新扫描
+    scan_buffer_size: 10           # 扫描缓冲区大小
+    scan_buffer_maximum_scan_distance: 10.0  # 扫描缓冲区最大扫描距离
+
+    # 扫描匹配参数
+    link_match_minimum_response_fine: 0.1      # 精细匹配最小响应值
+    link_scan_maximum_distance: 1.5            # 扫描链接最大距离
+    loop_search_maximum_distance: 3.0          # 回环检测搜索最大距离
+    do_loop_closing: true                      # 是否进行回环检测
+    loop_match_minimum_chain_size: 10          # 回环匹配最小链长
+    loop_match_maximum_variance_coarse: 3.0    # 粗匹配最大方差
+    loop_match_minimum_response_coarse: 0.35   # 粗匹配最小响应值
+    loop_match_minimum_response_fine: 0.45     # 精细匹配最小响应值
+
+    # 相关性参数 - 普通匹配
+    correlation_search_space_dimension: 0.5    # 搜索空间维度
+    correlation_search_space_resolution: 0.01  # 搜索空间分辨率
+    correlation_search_space_smear_deviation: 0.1  # 搜索空间平滑偏差
+
+    # 相关性参数 - 回环检测
+    loop_search_space_dimension: 8.0           # 回环搜索空间维度
+    loop_search_space_resolution: 0.05         # 回环搜索空间分辨率  
+    loop_search_space_smear_deviation: 0.03    # 回环搜索空间平滑偏差
+
+    # 扫描匹配器参数
+    distance_variance_penalty: 0.5             # 距离方差惩罚因子
+    angle_variance_penalty: 1.0                # 角度方差惩罚因子
+    fine_search_angle_offset: 0.00349          # 精细搜索角度偏移（≈0.2°）
+    coarse_search_angle_offset: 0.349          # 粗搜索角度偏移（≈20°）
+    coarse_angle_resolution: 0.0349            # 粗搜索角度分辨率（≈2°）
+    minimum_angle_penalty: 0.9                 # 最小角度惩罚
+    minimum_distance_penalty: 0.5              # 最小距离惩罚
+    use_response_expansion: true               # 是否使用响应扩展

@@ -10,15 +10,14 @@
     lidar_name: N10                                         #雷达选择:M10 M10_P M10_PLUS M10_GPS N10 L10 N10_P
     angle_disable_min: 0.0                                  #角度裁剪开始值
     angle_disable_max: 0.0                                  #角度裁剪结束值
-    min_range: 0.0                                          #雷达接收距离最小值
-    max_range: 200.0                                        #雷达接收距离最大值
+    min_range: 0.2                                          #雷达接收距离最小值
+    max_range: 20.0                                        #雷达接收距离最大值
     use_gps_ts: false                                       #雷达是否使用GPS授时
-    scan_topic: /scan                                       #设置激光数据topic名称
+    scan_topic: /scan_raw                                      #设置激光数据topic名称
     interface_selection: serial                             #接口选择:net 为网口,serial 为串口。
     serial_port_: /dev/usb_robot                              #串口连接时的串口号
     high_reflection: false                                  #M10_P雷达需填写该值,若不确定，请联系技术支持。
-    compensation: true				            #M10系列是否使用角度补偿功能########
-    points_per_scan: 450    # 固定点数###########
+    compensation: false				                              #M10系列是否使用角度补偿功能
     pubScan: true                                           #是否发布scan话题
     pubPointCloud2: false                                    #是否发布pointcloud2话题
     pointcloud_topic: /lslidar_point_cloud                  #设置激光数据topic名称
