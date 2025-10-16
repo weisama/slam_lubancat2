@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypelocation="http://www.ros.org/repos/cfg/list?rosdistro=$ROS_DISTRO&path=package-3.xsd"?>
+<package format="3">
+  <name>karto_slam</name>
+  <version>0.0.0</version>
+  <description>Karto SLAM implementation using slam_toolbox</description>
+  <maintainer email="user@todo.todo">user</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>slam_toolbox</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

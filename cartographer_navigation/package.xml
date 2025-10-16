@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypelayout="1.0"?>
+<package format="3">
+  <name>cartographer_navigation</name>
+  <version>0.0.0</version>
+  <description>Cartographer navigation with custom configuration</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>cartographer_ros</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
