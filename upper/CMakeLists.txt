@@ -13,10 +13,13 @@ find_package(sensor_msgs REQUIRED)
 find_package(tf2_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-# 编译可执行文件
-add_executable(serial_sender src/upper.cpp)
+# ✅ 新增：nlohmann_json 库
+find_package(nlohmann_json REQUIRED)
 
-ament_target_dependencies(serial_sender
+# 编译可执行文件
+add_executable(upper src/upper.cpp)
+
+ament_target_dependencies(upper
   rclcpp
   nav_msgs
   sensor_msgs
@@ -24,8 +27,11 @@ ament_target_dependencies(serial_sender
   std_msgs
 )
 
+# ✅ 新增：链接 JSON 库
+target_link_libraries(upper nlohmann_json::nlohmann_json)
+
 # 安装节点
-install(TARGETS serial_sender
+install(TARGETS upper
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -35,3 +41,4 @@ install(DIRECTORY launch
 )
 
 ament_package()
+

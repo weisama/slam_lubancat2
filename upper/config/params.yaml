@@ -1,0 +1,8 @@
+# 雷达型号选择: M10, M10_P, M10_PLUS, M10_GPS, N10, L10, N10_P
+lidar_name: N10
+
+# 雷达数据发布的话题
+scan_topic: /scan_raw
+
+# 雷达串口设备
+serial_port_: /dev/usb_robot

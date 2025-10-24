@@ -1,7 +1,7 @@
 slam_toolbox:
   ros__parameters:
     # 模式配置
-    mode: "mapping"  # 建图模式
+    mode: "mapping"
     debug_mode: false
     
     # 话题配置
@@ -13,7 +13,14 @@ slam_toolbox:
     # 坐标变换设置
     publish_tf: true
     publish_map_tf: true
-    
+
+    # 地图起始位姿
+    map_start_pose:
+      x: 0.0
+      y: 0.0
+      yaw: 0.0
+
+
     # 地图参数
     map_file_name: "karto_slam_map"
     map_update_interval: 5.0
@@ -43,9 +50,9 @@ slam_toolbox:
     do_map_publishing: true
     enable_interactive_mode: true
     
-    # 里程计参数 (使用您指定的/odom_rf2o话题)
+    # 里程计参数
     use_odom: true
-    use_imu: false  # 不使用IMU
+    use_imu: false
     
     # 地图保存参数
     save_pose_rate: 0.5

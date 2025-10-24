@@ -2,6 +2,8 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <vector>
 #include <algorithm>
+#include <string>
+#include <cmath>
 
 using std::placeholders::_1;
 
@@ -11,77 +13,102 @@ public:
   LidarFilter()
   : Node("lidar_filter")
   {
-    // 订阅原始scan
-    sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-      "/scan_raw", 10, std::bind(&LidarFilter::scanCallback, this, _1));
+    // 参数：目标点数和输入话题
+    this->declare_parameter<int>("target_size", 450);
+    this->declare_parameter<std::string>("scan_topic", "/scan_raw");
+
+    this->get_parameter("target_size", target_size_);
+    this->get_parameter("scan_topic", scan_topic_);
+
+    RCLCPP_INFO(this->get_logger(), "LidarFilter started: target_size=%d, scan_topic=%s", 
+                target_size_, scan_topic_.c_str());
 
     // 发布过滤后的scan
     pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("/scan", 10);
 
-    // 设置定时器，10Hz 发布最新一帧
-    timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(100),
-      std::bind(&LidarFilter::publishFilteredScan, this));
-
-    RCLCPP_INFO(this->get_logger(), "LidarFilter node started (10Hz).");
+    // 订阅原始scan，并在回调函数中立即处理并发布
+    sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic_, 10, std::bind(&LidarFilter::scanCallback, this, _1));
   }
 
 private:
   void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
   {
-    last_scan_ = *msg;
+    // 立即处理并发布过滤后的数据
+    auto filtered_scan = processScan(*msg);
+    pub_->publish(filtered_scan);
   }
 
-  void publishFilteredScan()
+  sensor_msgs::msg::LaserScan processScan(const sensor_msgs::msg::LaserScan& input_scan)
   {
-    if (last_scan_.ranges.empty()) return;
+    auto output_scan = input_scan;
+    size_t original_size = input_scan.ranges.size();
+    
+    // 如果目标尺寸与原始尺寸相同，直接返回
+    if (static_cast<size_t>(target_size_) == original_size) {
+      return output_scan;
+    }
 
-    auto filtered = last_scan_;
+    // 准备输出数组
+    std::vector<float> new_ranges(target_size_, std::numeric_limits<float>::infinity());
+    std::vector<float> new_intensities;
+    if (!input_scan.intensities.empty()) {
+      new_intensities.resize(target_size_, 0.0);
+    }
 
-    int n = static_cast<int>(filtered.ranges.size());
-    if (n >= 445 && n <= 455)
-    {
-      const int target_size = 450;
-      std::vector<float> new_ranges(target_size);
-      std::vector<float> new_intensities(target_size);
+    // 计算角度参数
+    float original_angle_min = input_scan.angle_min;
+    float original_angle_increment = input_scan.angle_increment;
+    float output_angle_increment = (input_scan.angle_max - input_scan.angle_min) / (target_size_ - 1);
+    
+    output_scan.angle_increment = output_angle_increment;
+    output_scan.ranges = new_ranges;
+    output_scan.intensities = new_intensities;
 
-      for (int i = 0; i < target_size; ++i)
-      {
-        float t = static_cast<float>(i) / (target_size - 1);
-        float src_index = t * (n - 1);
-        int i0 = static_cast<int>(src_index);
-        int i1 = std::min(i0 + 1, n - 1);
-        float alpha = src_index - i0;
-
-        // 线性插值
-        new_ranges[i] = filtered.ranges[i0] * (1 - alpha) + filtered.ranges[i1] * alpha;
-        if (!filtered.intensities.empty())
-          new_intensities[i] = filtered.intensities[i0] * (1 - alpha) + filtered.intensities[i1] * alpha;
+    // 为每个输出点找到对应的原始点
+    for (int out_idx = 0; out_idx < target_size_; ++out_idx) {
+      float target_angle = original_angle_min + out_idx * output_angle_increment;
+      
+      // 找到最近的原始点索引
+      int closest_idx = findClosestIndex(target_angle, original_angle_min, original_angle_increment, original_size);
+      
+      if (closest_idx >= 0 && static_cast<size_t>(closest_idx) < original_size) {
+        // 使用最近邻插值
+        output_scan.ranges[out_idx] = input_scan.ranges[closest_idx];
+        if (!input_scan.intensities.empty() && !output_scan.intensities.empty()) {
+          output_scan.intensities[out_idx] = input_scan.intensities[closest_idx];
+        }
       }
-
-      filtered.ranges = new_ranges;
-      filtered.intensities = new_intensities;
-
-      // 更新角度信息
-      float total_angle = filtered.angle_max - filtered.angle_min;
-      filtered.angle_increment = total_angle / (target_size - 1);
-    }
-    else
-    {
-      // 点数不在范围内，跳过
-      RCLCPP_WARN_THROTTLE(
-        this->get_logger(), *this->get_clock(), 5000,
-        "Received scan size=%d, out of range [345,355]", n);
-      return;
     }
 
-    pub_->publish(filtered);
+    return output_scan;
   }
+
+  int findClosestIndex(float target_angle, float angle_min, float angle_increment, size_t size)
+  {
+    // 计算目标角度对应的索引
+    float raw_index = (target_angle - angle_min) / angle_increment;
+    
+    // 四舍五入到最近的整数索引
+    int index = static_cast<int>(std::round(raw_index));
+    
+    // 确保索引在有效范围内
+    if (index < 0) return 0;
+    if (static_cast<size_t>(index) >= size) return static_cast<int>(size) - 1;
+    
+    return index;
+  }
+
+  bool isValidMeasurement(float range)
+  {
+    return std::isfinite(range) && range >= 0.0f;
+  }
+
+  std::string scan_topic_;
+  int target_size_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub_;
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_;
-  rclcpp::TimerBase::SharedPtr timer_;
-  sensor_msgs::msg::LaserScan last_scan_;
 };
 
 int main(int argc, char **argv)
