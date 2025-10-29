@@ -1,8 +1,16 @@
-# 雷达型号选择: M10, M10_P, M10_PLUS, M10_GPS, N10, L10, N10_P
+# 雷达型号选择: N10, N10_P，可设置
 lidar_name: N10
 
 # 雷达数据发布的话题
 scan_topic: /scan_raw
 
-# 雷达串口设备
+# 雷达串口设备,不可设置
 serial_port_: /dev/usb_robot
+
+# 定义 base_link -> laser_link 的固定 TF 变换，单位cm和度
+x: 10
+y: 0.0
+z: 10
+roll: 0
+pitch: 0
+yaw: 0

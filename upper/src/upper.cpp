@@ -5,7 +5,6 @@
 #include <set>
 #include <mutex>
 #include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
@@ -13,6 +12,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <nlohmann/json.hpp>
+#include <tinyxml2.h>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -21,80 +21,45 @@
 
 using json = nlohmann::json;
 using namespace std::chrono_literals;
+using namespace tinyxml2;
 
-class SerialSender : public rclcpp::Node
+class TcpSender : public rclcpp::Node
 {
 public:
-    SerialSender() : Node("serial_sender"), fd_(-1), listen_sock_(-1)
+    TcpSender() : Node("tcp_sender"), listen_sock_(-1)
     {
         // ---- 参数声明 ----
-        this->declare_parameter<std::string>("serial_port", "/dev/ttyS3");
-        this->declare_parameter<int>("baud_rate", 921600);
         this->declare_parameter<std::string>("tcp_ip", "0.0.0.0");
-        this->declare_parameter<int>("tcp_port", 9999);
+        this->declare_parameter<int>("tcp_port", 6666);
 
-        serial_port_ = this->get_parameter("serial_port").as_string();
-        baud_rate_   = this->get_parameter("baud_rate").as_int();
-        tcp_ip_      = this->get_parameter("tcp_ip").as_string();
-        tcp_port_    = this->get_parameter("tcp_port").as_int();
+        tcp_ip_ = this->get_parameter("tcp_ip").as_string();
+        tcp_port_ = this->get_parameter("tcp_port").as_int();
 
-        openSerialPort();
         startTcpServer();
 
         // ---- 订阅话题 ----
         tf_sub_ = this->create_subscription<tf2_msgs::msg::TFMessage>(
-            "/tf", 10, std::bind(&SerialSender::tfCallback, this, std::placeholders::_1));
+            "/tf", 10, std::bind(&TcpSender::tfCallback, this, std::placeholders::_1));
         scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-            "/scan", 10, std::bind(&SerialSender::scanCallback, this, std::placeholders::_1));
+            "/scan", 10, std::bind(&TcpSender::scanCallback, this, std::placeholders::_1));
         map_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
-            "/map", 1, std::bind(&SerialSender::mapCallback, this, std::placeholders::_1));
+            "/map", 1, std::bind(&TcpSender::mapCallback, this, std::placeholders::_1));
 
-        // ---- TCP 连接检测 ----
-        tcp_accept_timer_ = this->create_wall_timer(200ms, std::bind(&SerialSender::acceptPendingClients, this));
+        // ---- TCP 连接 & 接收检查 ----
+        tcp_accept_timer_ = this->create_wall_timer(200ms, std::bind(&TcpSender::acceptPendingClients, this));
+        tcp_recv_timer_ = this->create_wall_timer(100ms, std::bind(&TcpSender::checkTcpRecv, this));
 
         // ---- 速率统计 ----
-        rate_timer_ = this->create_wall_timer(1s, std::bind(&SerialSender::logRates, this));
+        rate_timer_ = this->create_wall_timer(1s, std::bind(&TcpSender::logRates, this));
     }
 
-    ~SerialSender()
+    ~TcpSender()
     {
-        if (fd_ != -1) close(fd_);
         if (listen_sock_ != -1) close(listen_sock_);
         for (int c : clients_) close(c);
     }
 
 private:
-    // ======== 串口函数 ========
-    void openSerialPort()
-    {
-        fd_ = open(serial_port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
-        if (fd_ < 0)
-        {
-            RCLCPP_WARN(this->get_logger(), "Failed to open serial port %s: %s",
-                        serial_port_.c_str(), strerror(errno));
-            return;
-        }
-
-        struct termios tty {};
-        if (tcgetattr(fd_, &tty) != 0)
-        {
-            RCLCPP_WARN(this->get_logger(), "tcgetattr failed: %s", strerror(errno));
-            return;
-        }
-
-        cfsetospeed(&tty, baud_rate_);
-        cfsetispeed(&tty, baud_rate_);
-        tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;
-        tty.c_iflag = IGNPAR;
-        tty.c_oflag = 0;
-        tty.c_lflag = 0;
-        tty.c_cc[VMIN]  = 0;
-        tty.c_cc[VTIME] = 1;
-
-        tcsetattr(fd_, TCSANOW, &tty);
-        RCLCPP_INFO(this->get_logger(), "Serial port %s opened, baud %d", serial_port_.c_str(), baud_rate_);
-    }
-
     // ======== TCP Server ========
     void startTcpServer()
     {
@@ -136,11 +101,97 @@ private:
         RCLCPP_INFO(this->get_logger(), "New TCP client connected, fd=%d", client_fd);
     }
 
-    // ======== ROS2 话题回调 (收到即发送) ========
+    // ======== TCP 数据接收与解析 ========
+    void checkTcpRecv()
+    {
+        uint8_t buf[256];
+        for (auto it = clients_.begin(); it != clients_.end();)
+        {
+            ssize_t n = recv(*it, buf, sizeof(buf), 0);
+            if (n <= 0)
+            {
+                ++it;
+                continue;
+            }
+
+            // === 通信测试命令: AA 00 01 0A ===
+            for (ssize_t i = 0; i < n - 3; ++i)
+            {
+                if (buf[i] == 0xAA && buf[i + 1] == 0x00 &&
+                    buf[i + 2] == 0x01 && buf[i + 3] == 0x0A)
+                {
+                    uint8_t reply[4] = {0xAA, 0x00, 0x01, 0x0A};
+                    send(*it, reply, sizeof(reply), 0);
+                    RCLCPP_INFO(this->get_logger(), "Recv test cmd, echo back AA 00 01 0A");
+                }
+            }
+
+            // === 参数修改命令: AA 10 param_id val_high val_low 0A ===
+            for (ssize_t i = 0; i < n - 5; ++i)
+            {
+                if (buf[i] == 0xAA && buf[i + 1] == 0x10 && buf[i + 5] == 0x0A)
+                {
+                    uint8_t param_id = buf[i + 2];
+                    uint16_t value = (buf[i + 3] << 8) | buf[i + 4];
+                    handleParamCommand(param_id, value);
+                    RCLCPP_INFO(this->get_logger(), "Recv param cmd: id=%d value=%d", param_id, value);
+                }
+            }
+
+            ++it;
+        }
+    }
+
+    // ======== 修改 param.xml ========
+    void handleParamCommand(uint8_t param_id, uint16_t value)
+    {
+        std::string file_path = std::string(getenv("HOME")) + "/slam_ws/src/upper/config/param.xml";
+        XMLDocument doc;
+        if (doc.LoadFile(file_path.c_str()) != XML_SUCCESS)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to open %s", file_path.c_str());
+            return;
+        }
+
+        XMLElement *root = doc.RootElement();
+        if (!root)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Invalid XML root");
+            return;
+        }
+
+        auto setVal = [&](const char *name, const std::string &val)
+        {
+            XMLElement *elem = root->FirstChildElement(name);
+            if (elem)
+                elem->SetText(val.c_str());
+        };
+
+        switch (param_id)
+        {
+            case 0x00: // 雷达型号
+                if (value == 0) setVal("lidar_name", "N10");
+                else setVal("lidar_name", "N10_P");
+                break;
+            case 0x01: setVal("x", std::to_string(value)); break;
+            case 0x02: setVal("y", std::to_string(value)); break;
+            case 0x03: setVal("z", std::to_string(value)); break;
+            case 0x04: setVal("roll", std::to_string(value)); break;
+            case 0x05: setVal("pitch", std::to_string(value)); break;
+            case 0x06: setVal("yaw", std::to_string(value)); break;
+            default:
+                RCLCPP_WARN(this->get_logger(), "Unknown param id: %d", param_id);
+                return;
+        }
+
+        doc.SaveFile(file_path.c_str());
+        RCLCPP_INFO(this->get_logger(), "Updated %s successfully.", file_path.c_str());
+    }
+
+    // ======== ROS2 回调 ========
     void tfCallback(const tf2_msgs::msg::TFMessage::SharedPtr msg)
     {
         if (msg->transforms.empty()) return;
-
         const auto &t = msg->transforms[0];
         json j;
         j["topic"] = "tf";
@@ -153,25 +204,19 @@ private:
         j["qy"] = t.transform.rotation.y;
         j["qz"] = t.transform.rotation.z;
         j["qw"] = t.transform.rotation.w;
-
         sendJsonPacket(0x01, j.dump());
     }
 
     void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
         if (msg->ranges.empty()) return;
-
         json j;
         j["topic"] = "scan";
         j["angle_min"] = msg->angle_min;
         j["angle_max"] = msg->angle_max;
         j["angle_increment"] = msg->angle_increment;
         j["range_count"] = msg->ranges.size();
-        j["ranges"] = json::array();
-
-        for (size_t i = 0; i < std::min<size_t>(msg->ranges.size(), 30); ++i)
-            j["ranges"].push_back(msg->ranges[i]);
-
+        j["ranges"] = msg->ranges;
         sendJsonPacket(0x02, j.dump());
     }
 
@@ -227,14 +272,6 @@ private:
     // ======== 实际发送 ========
     void sendPacket(const std::vector<uint8_t> &packet)
     {
-        // 串口
-        if (fd_ != -1)
-        {
-            ssize_t n = write(fd_, packet.data(), packet.size());
-            if (n > 0) bytes_sent_serial_ += n;
-        }
-
-        // TCP 广播
         for (auto it = clients_.begin(); it != clients_.end();)
         {
             ssize_t n = send(*it, packet.data(), packet.size(), 0);
@@ -251,20 +288,15 @@ private:
         }
     }
 
-    // ======== 打印速率 ========
     void logRates()
     {
         RCLCPP_INFO(this->get_logger(),
-                    "Tx rates (bytes/sec): serial=%zu, tcp=%zu, clients=%zu",
-                    bytes_sent_serial_, bytes_sent_tcp_, clients_.size());
-        bytes_sent_serial_ = bytes_sent_tcp_ = 0;
+                    "Tx rates (bytes/sec): tcp=%zu, clients=%zu",
+                    bytes_sent_tcp_, clients_.size());
+        bytes_sent_tcp_ = 0;
     }
 
 private:
-    std::string serial_port_;
-    int baud_rate_;
-    int fd_;
-
     std::string tcp_ip_;
     int tcp_port_;
     int listen_sock_;
@@ -273,16 +305,15 @@ private:
     rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_sub_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
-    rclcpp::TimerBase::SharedPtr rate_timer_, tcp_accept_timer_;
+    rclcpp::TimerBase::SharedPtr rate_timer_, tcp_accept_timer_, tcp_recv_timer_;
 
-    size_t bytes_sent_serial_ = 0;
     size_t bytes_sent_tcp_ = 0;
 };
 
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<SerialSender>());
+    rclcpp::spin(std::make_shared<TcpSender>());
     rclcpp::shutdown();
     return 0;
 }
