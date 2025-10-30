@@ -2,7 +2,8 @@
 <package format="3">
   <name>upper</name>
   <version>0.0.1</version>
-  <description>Serial sender node for ROS 2</description>
+  <description>TCP sender node for ROS 2</description>
+
   <maintainer email="you@example.com">Your Name</maintainer>
   <license>Apache-2.0</license>
 
@@ -13,6 +14,10 @@
   <depend>sensor_msgs</depend>
   <depend>tf2_msgs</depend>
   <depend>std_msgs</depend>
+  
+  <!-- 使用 ROS2 提供的 vendor 包而不是系统包 -->
+  <depend>nlohmann_json_vendor</depend>
+  <depend>tinyxml2_vendor</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
